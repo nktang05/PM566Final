@@ -4,8 +4,4 @@ description: "Final project"
 ---
 
 Author: Nicole Tang
-bjkasdhflksjadlfk
 
-```{r}
-1 + 1
-```
