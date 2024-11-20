@@ -1,5 +1,6 @@
 ---
 title: "PM566Final Website Project"
+description: "Final project"
 ---
 
 Author: Nicole Tang
