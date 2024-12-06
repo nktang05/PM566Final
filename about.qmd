@@ -1,6 +1,443 @@
 ---
-title: "About"
+title: "PM566 Final"
+author: "Nicole Tang"
+format: html
+embed-resources: true
+fig-width: 9
+fig-height: 6
 ---
 
-About page
+PM 566 Final
+
+
+```{r setup, message=FALSE, echo=FALSE, warning=FALSE}
+library(data.table)
+library(leaflet)
+library(tidyverse)
+library(data.table)
+library(R.utils)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(gganimate)
+library(ggforce)
+library(tidytext)
+library(tidyr)
+library(readr)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(plotly)
+```
+## Data Analysis for Covid 19 Vaccine Hesitancy and possible demographic and geographic correlations
+
+***Introduction***
+
+COVID-19 vaccine hesitancy refers to the reluctance or refusal to get vaccinated despite the availability of vaccines. Vaccination plays a crucial role in controlling the pandemic by reducing the spread of the virus, preventing severe illness, and decreasing hospitalization and death rates. The COVID-19 vaccines have been proven to be highly effective in boosting immunity and protecting not only individuals but also communities by contributing to herd immunity. However, hesitancy has been influenced by factors such as misinformation, distrust in healthcare systems or government authorities, concerns about the speed of vaccine development, and fears about potential side effects. Social, cultural, and political contexts have also shaped people's attitudes toward vaccines. Addressing vaccine hesitancy requires comprehensive public health strategies that include transparent communication, community engagement, and efforts to build trust by addressing the specific concerns and barriers faced by different populations.
+
+
+The CDC has published a data set about vaccine Hesitancy for COVID-19 in 2021. This data set has various demographic information showing information by county, state, ethnicity, and vulnerability. Hesitancy is measured by percentage of the population. This data set also looks into varying levels of hesitancy: hesitant, hesitant or unsure, or strongly hesitant. Data set origin: https://data.cdc.gov/Vaccinations/Vaccine-Hesitancy-for-COVID-19-County-and-local-es/q9mh-h2tw/about_data
+
+My objective is to observe any possible correlations between demographic and geological factors and the rates of vaccine hesitancy.
+
+**Research Question**
+Are there any correlations between demographic and geological factors and the rates of vaccine hesitancy?
+
+***Methods***
+**Data Cleaning and Wrangling**
+A csv file downloaded to my files from the CDC website was read into a data frame. Rows with NA were removed. One of the data columns held latitude and longitudinal information in the data type "Point". So, I coded two new variable columns for latitude and longitude so it is in a more usable form for future visualizations.
+
+
+```{r, echo = FALSE}
+#read in csv
+data <- read_csv("Vaccine_Hesitancy_for_COVID-19__County_and_local_estimates_20241025.csv", show_col_types = FALSE)
+
+#test for success
+#head(data)
+
+initial_row_count <- nrow(data)
+
+#remove rows with NA
+data <- data %>%
+  drop_na()
+
+final_row_count <- nrow(data)
+
+rows_dropped <- initial_row_count - final_row_count
+#print(rows_dropped)
+
+#mutate data type of long and lat
+data <- data %>%
+  mutate(
+    geo_point_clean = str_remove_all(`Geographical Point`, "POINT \\(|\\)"),
+    long = as.numeric(str_split_fixed(geo_point_clean, " ", 2)[, 1]),
+    lat = as.numeric(str_split_fixed(geo_point_clean, " ", 2)[, 2])
+  ) %>%
+  select(-geo_point_clean)
+
+region_lookup <- data.frame(
+  State = c("CONNECTICUT", "MAINE", "MASSACHUSETTS", "NEW HAMPSHIRE", "RHODE ISLAND", "VERMONT","DISTRICT OF COLUMBIA", 
+            "NEW JERSEY", "NEW YORK", "PENNSYLVANIA", 
+            "ILLINOIS", "INDIANA", "IOWA", "KANSAS", "MICHIGAN", "MINNESOTA", "MISSOURI", "NEBRASKA", "NORTH DAKOTA", 
+            "OHIO", "SOUTH DAKOTA", "WISCONSIN", 
+            "ALABAMA", "ARKANSAS", "DELAWARE", "FLORIDA", "GEORGIA", "KENTUCKY", "LOUISIANA", "MARYLAND", "MISSISSIPPI", 
+            "NORTH CAROLINA", "OKLAHOMA", "SOUTH CAROLINA", "TENNESSEE", "TEXAS", "VIRGINIA", "WEST VIRGINIA", 
+            "ALASKA", "ARIZONA", "CALIFORNIA", "COLORADO", "HAWAII", "IDAHO", "MONTANA", "NEVADA", "NEW MEXICO", 
+            "OREGON", "UTAH", "WASHINGTON", "WYOMING"),
+  Region = c(rep("Northeast", 10), rep("Midwest", 12), rep("South", 17), rep("West", 12))
+)
+
+data <- data %>%
+  left_join(region_lookup, by = "State")
+
+#test for success
+#summary(data)
+
+```
+
+**Aggregate Hesitancy Rates by State**
+I created a new data frame with State as the primary key and get the mean hesitancy. I created a new data frame with State as the primary key and get the mean not hesitant. The mean not hesitant was calculated by subtracting hesitant, hesitant or unsure, and strongly hesitant from 100. Join these two dfs to have a df with both hesitancy variables. Make another df with state as primary key and add lat and long variables. Merge with the hesitancy table to have a table with pk: state and variables: estimated hesitant, not hesitant, lat, long. The summary statistics are tabulated as follows.
+```{r, echo = FALSE}
+
+#calculate the average estimated hesitant rate per state and add to new df
+mean_hesitancy <- aggregate(data$'Estimated hesitant', by = list(data$'State Code'), FUN = mean, na.rm = TRUE)
+colnames(mean_hesitancy) <- c("State_Code", "Estimated_Hesitant")
+
+#calculate not hesitant rate
+data$Estimated_not_hesitant <- 100 - (data$'Estimated hesitant' + 
+                                        data$'Estimated hesitant or unsure' + 
+                                        data$'Estimated strongly hesitant')
+
+#calculate the not hesitant rate per state and add to new df
+mean_not_hesitant <- aggregate(data$'Estimated_not_hesitant', by = list(data$'State Code'), FUN = mean, na.rm = TRUE)
+colnames(mean_not_hesitant) <- c("State_Code", "Estimated_not_hesitant")
+
+#join the two dfs using State
+mean_hesitancy <- merge(mean_hesitancy, mean_not_hesitant, by = "State_Code")
+
+#make another df with lat and long
+state_coords <- unique(data[, c("State Code", "long", "lat")])
+
+# Merge long and lat df
+mean_hesitancy <- merge(mean_hesitancy, state_coords, by.x = "State_Code", by.y = "State Code", all.x = TRUE)
+
+region_lookup <- data.frame(
+  State_Code = c("CT", "ME", "MA", "NH", "RI", "VT", "NJ", "NY", "PA", "DC",
+                   "IL", "IN", "IA", "KS", "MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI",
+                   "AL", "AR", "DE", "FL", "GA", "KY", "LA", "MD", "MS", "NC", "OK", "SC", "TN", "TX", "VA", "WV",
+                   "AK", "AZ", "CA", "CO", "HI", "ID", "MT", "NV", "NM", "OR", "UT", "WA", "WY"),
+  Region = c(rep("Northeast", 10), rep("Midwest", 12), rep("South", 17), rep("West", 12))
+)
+
+mean_hesitancy <- mean_hesitancy %>%
+  left_join(region_lookup, by = "State_Code")
+
+
+#check for df successful merging
+#head(mean_hesitancy)
+```
+
+```{r, echo = FALSE}
+summary_table <- mean_hesitancy %>%
+  summarise(
+    Mean_Hesitant = mean(Estimated_Hesitant, na.rm = TRUE),
+    SD_Hesitant = sd(Estimated_Hesitant, na.rm = TRUE),
+    Min_Hesitant = min(Estimated_Hesitant, na.rm = TRUE),
+    Max_Hesitant = max(Estimated_Hesitant, na.rm = TRUE),
+    Mean_Not_Hesitant = mean(Estimated_not_hesitant, na.rm = TRUE),
+    SD_Not_Hesitant = sd(Estimated_not_hesitant, na.rm = TRUE),
+    Min_Not_Hesitant = min(Estimated_not_hesitant, na.rm = TRUE),
+    Max_Not_Hesitant = max(Estimated_not_hesitant, na.rm = TRUE)
+  )
+
+# Use kable to create a publication-quality table
+table <- kable(summary_table, caption = "Summary Statistics for Vaccine Hesitancy",
+      col.names = c("Mean Hesitant (%)", "SD Hesitant", "Min Hesitant (%)", "Max Hesitant (%)",
+                    "Mean Not Hesitant (%)", "SD Not Hesitant", "Min Not Hesitant (%)", "Max Not Hesitant (%)")) %>%
+  kable_styling(full_width = FALSE, position = "center")
+
+table
+```
+
+**Aggregate Hesitancy Rates by Ethnicity**
+The data set has columns for each ethnicity and the percentage of that ethnicity in the region. I made a new cat column that's value is the predominant ethnicity of that location. I then averaged the estimated hesitancy grouping by ethnicity.
+```{r, echo = FALSE}
+ethnicities <- c("Percent Hispanic", 
+                 "Percent non-Hispanic American Indian/Alaska Native",
+                 "Percent non-Hispanic Asian",
+                 "Percent non-Hispanic Black",
+                 "Percent non-Hispanic Native Hawaiian/Pacific Islander",
+                 "Percent non-Hispanic White")
+
+# Use max.col to determine the predominant ethnicity
+data$Predominant_Ethnicity <- colnames(data[ethnicities])[max.col(data[ethnicities], ties.method = "first")]
+
+# Print the first few rows to verify the new column
+#head(data[c("State", "Predominant_Ethnicity")])
+
+# Calculate the average estimated hesitant percentage by ethnicity
+ethnicity_df <- aggregate(data$'Estimated hesitant', by = list(data$'Predominant_Ethnicity'), FUN = mean, na.rm = TRUE)
+colnames(ethnicity_df) <- c("ethnicity", "Estimated_Hesitant")
+
+ethnicity_df$ethnicity <- gsub("Percent ", "", ethnicity_df$ethnicity)
+```
+
+***Visualization Results***
+
+
+**Visualization: Mean Hesitancy Rates by State**
+Create a bar chart to observe which states have the highest rates of hesitancy. MT has the highest rates of hesitancy. It is followed by WY and AK who have similar rates of hesitancy. VT has the lowest rates of hesitancy. Based on this visualization and the difference from max to min of estimate rates I would conclude that hesitancy rates and states have a correlation.
+```{r, echo = FALSE}
+# Order descending by mean hesitancy
+mean_hesitancy <- mean_hesitancy %>%
+  arrange(desc(Estimated_Hesitant))
+
+# Ensure State_Code is a factor and ordered by Estimated_Hesitant
+mean_hesitancy$State_Code <- factor(mean_hesitancy$State_Code, levels = mean_hesitancy$State_Code)
+
+# Ensure Region is also a factor
+mean_hesitancy$Region <- factor(mean_hesitancy$Region)
+
+# Create the bar chart
+v1 <- ggplot(mean_hesitancy, aes(x = State_Code, y = Estimated_Hesitant, fill = Region, text = paste("Region:", Region, "<br>State:", State_Code, "<br>Hesitancy Rate:", round(Estimated_Hesitant, 2)))) +
+      geom_bar(stat = "identity") +
+      labs(
+        title = "Average COVID-19 Vaccine Hesitancy by State",
+        x = "State",
+        y = "Average Estimated Hesitant (%)"
+      ) +
+      theme_minimal() +
+      theme(
+        axis.text.x = element_text(size = 8, angle = 45, hjust = 1), 
+        axis.text.y = element_text(size = 8)
+      ) +
+      scale_x_discrete(guide = guide_axis(n.dodge = 2)) +
+      scale_fill_brewer(palette = "Set1")
+
+# Convert the ggplot to an interactive plotly plot
+v1_interactive <- ggplotly(v1, tooltip = "text")
+
+# Display the interactive plot
+v1_interactive
+
+```
+
+
+**Visualization: Mean Hesitancy Rates and Non hesitancy rates by State**
+Create a bar chart to observe which states have the highest rates of hesitancy and also displays their non hesitancy rates. MT has the highest rates of hesitancy and the lowest rates of non hesitancy. It is followed by WY and AK who have similar rates of hesitancy.However, AK has higher rates of non hesitancy than WY. VT has the lowest rates of hesitancy and MA has the second highest rates of hesitancy. However MA has the highest rates of non hesitancy. Based on this visualization I would conclude that hesitancy and non hesitancy appear to be inversely related and the higher the rate of hesitancy, the lower the rate of non hesitancy. I would also conclude that the variance of mean hesitancy rates and non hesitancy rates differ by states indication a correlation between state and hesitancy rates.
+```{r, echo = FALSE}
+#order by hesitancy rates
+mean_hesitancy <- mean_hesitancy %>%
+  arrange(desc(Estimated_Hesitant))
+
+#make sure factor
+mean_hesitancy$State_Code <- factor(mean_hesitancy$State_Code, levels = mean_hesitancy$State_Code)
+
+#new df to look at hesitant and not hesitant rates
+mean_hesitancy_long <- mean_hesitancy %>%
+  pivot_longer(cols = c("Estimated_Hesitant", "Estimated_not_hesitant"), 
+               names_to = "Type", 
+               values_to = "Percentage")
+
+
+# Create a scatter plot
+v2.5 <- ggplot(mean_hesitancy, aes(x = Estimated_Hesitant, y = Estimated_not_hesitant, label = State_Code)) +
+  geom_point(aes(color = Region), size = 4, alpha = 0.8) +
+  geom_text(vjust = -0.5, size = 3) +
+  labs(
+    title = "Scatter Plot of Hesitancy vs. Non-Hesitancy by State",
+    x = "Average Estimated Hesitant (%)",
+    y = "Average Estimated Not Hesitant (%)",
+    color = "Region"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(size = 14, hjust = 0.5)
+  ) +
+  scale_color_brewer(palette = "Set1")
+
+# Convert the ggplot to an interactive plotly plot
+v2.5_interactive <- ggplotly(v2.5, tooltip = c("x", "y", "label", "color"))
+
+# Display the interactive plot
+v2.5_interactive
+
+```
+
+
+**Visualization: Mean Hesitancy Rates by Social Vulnerability Index**
+I also wanted to look at other demographic points other than state/region. Social Vulnerability Index (SVI) was categorized as  Very Low (0.0-0.19), Low (0.20-0.39); Moderate (0.40-0.59); High (0.60-0.79); Very High (0.80-1.0). I made a box plot so you can also see max, min, and median by category. High vulnerability has the highest average estimated hesitancy. Very low vulnerability has the lowest rates of hesitancy. This is interesting because you would think that the higher vulnerability would not be quite so hesitant.
+
+```{r, echo = FALSE}
+data$`SVI Category` <- factor(data$`SVI Category`, levels = c("Very Low Vulnerability", 
+                                                              "Low Vulnerability", 
+                                                              "Moderate Vulnerability", 
+                                                              "High Vulnerability", 
+                                                              "Very High Vulnerability"))
+
+# Create the box plot with ordered categories
+
+# Create the box plot using ggplot
+v4 <- ggplot(data, aes(x = `SVI Category`, y = `Estimated hesitant`, fill = `SVI Category`, text = paste(
+  "SVI Category:", `SVI Category`, "<br>",
+  "Estimated Hesitancy:", round(`Estimated hesitant`, 2)
+))) +
+  geom_boxplot() +
+  labs(
+    title = "Box Plot of COVID-19 Vaccine Hesitancy by Social Vulnerability",
+    x = "Social Vulnerability Category",
+    y = "Estimated Hesitancy (%)"
+  ) +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 12, face = "bold"), 
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 8),
+    legend.position = "none"  # Remove the legend
+  )
+
+# Convert the ggplot to an interactive plotly plot
+v4_interactive <- ggplotly(v4, tooltip = "text")
+
+# Display the interactive plot
+v4_interactive
+```
+
+**Visualization: Mean Hesitancy Rates by CVAC**
+I also wanted to look at other demographic points other than state/region. Social Vulnerability Index (SVI) was categorized as  Very Low (0.0-0.19), Low (0.20-0.39); Moderate (0.40-0.59); High (0.60-0.79); Very High (0.80-1.0). I made a box plot so you can also see max, min, and median by category. High vulnerability has the highest average estimated hesitancy. Very low vulnerability has the lowest rates of hesitancy. This is interesting because you would think that the higher vulnerability would not be quite so hesitant.
+
+```{r, echo = FALSE}
+data$`CVAC Level Of Concern` <- factor(data$`CVAC Level Of Concern`, levels = c("Very Low Concern", 
+                                                              "Low Concern", 
+                                                              "Moderate Concern", 
+                                                              "High Concern", 
+                                                              "Very High Concern"))
+
+# Create the box plot with ordered categories
+
+# Create the box plot using ggplot
+v4.5 <- ggplot(data, aes(x = `CVAC Level Of Concern`, y = `Estimated hesitant`, fill = `CVAC Level Of Concern`, text = paste(
+  "CVAC Level Of Concern:", `CVAC Level Of Concern`, "<br>",
+  "Estimated Hesitancy:", round(`Estimated hesitant`, 2)
+))) +
+  geom_boxplot() +
+  labs(
+    title = "Box Plot of COVID-19 Vaccine Hesitancy by CVAC Level Of Concern",
+    x = "CVAC Level Of Concern",
+    y = "Estimated Hesitancy (%)"
+  ) +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 12, face = "bold"), 
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 8),
+    legend.position = "none"  # Remove the legend
+  )
+
+# Convert the ggplot to an interactive plotly plot
+v4.5_interactive <- ggplotly(v4.5, tooltip = "text")
+
+# Display the interactive plot
+v4.5_interactive
+```
+
+**Visualization: Mean Hesitancy Rates by Ethnicity**
+Using the df with the average hesitancy rates by ethnicity I made a bar plot to look at which ethnic group had the highest average. Based on this visualization Percent non-Hispanic American Indian/Alaska Native had the highest rates of hesitancy and Percent non-Hispanic Native Hawaiian/Pacific Islander had the lowest rates of hesitancy.
+
+```{r, echo = FALSE}
+#order
+ethnicity_df <- ethnicity_df %>%
+  arrange(desc(Estimated_Hesitant))
+#make sure factor
+ethnicity_df$ethnicity <- factor(ethnicity_df$ethnicity, levels = ethnicity_df$ethnicity)
+
+# Create the bar chart
+v5 <- ggplot(ethnicity_df, aes(x = ethnicity, y = Estimated_Hesitant, fill = ethnicity, text = paste(
+  "Ethnicity: ", ethnicity, "<br>",
+  "Estimated Hesitant: ", round(Estimated_Hesitant, 2), "%"
+))) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Average COVID-19 Vaccine Hesitancy by Ethnicity",
+    x = "Ethnicity",
+    y = "Average Estimated Hesitant (%)"
+  ) +
+  theme_minimal() + 
+  theme(
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 8)
+  )
+
+# Convert the ggplot chart to an interactive plotly chart
+v5_interactive <- ggplotly(v5, tooltip = "text")
+
+# Display the interactive plot
+v5_interactive
+
+```
+**Visualization: Mean Hesitancy Rates by Ethnicity**
+I also wanted to look at hesitancy rates by ethnicity in a scatter plot to see each individual dot and then compare across ethnicity. Some groups like non-Hispanic Asians appear to have lower overall hesitancy, while groups such as non-Hispanic Black and non-Hispanic American Indian/Alaska Native show a wider spread and higher average hesitancy.
+
+```{r, echo = FALSE}
+data_eth <- data %>%
+  pivot_longer(
+    cols = c("Percent Hispanic", 
+             "Percent non-Hispanic American Indian/Alaska Native",
+             "Percent non-Hispanic Asian",
+             "Percent non-Hispanic Black",
+             "Percent non-Hispanic Native Hawaiian/Pacific Islander",
+             "Percent non-Hispanic White"),
+    names_to = "Ethnicity",
+    values_to = "Ethnicity_Percentage"
+  )
+
+v6 <- ggplot(data_eth, aes(x = Ethnicity_Percentage, y = `Estimated hesitant`, color = Ethnicity, text = paste(
+  "Ethnicity: ", Ethnicity, "<br>",
+  "Ethnicity Percentage: ", round(Ethnicity_Percentage, 2), "%<br>",
+  "Estimated Hesitant: ", round(`Estimated hesitant`, 2), "%"
+))) +
+  geom_point(alpha = 0.7) + 
+  labs(
+    title = "Scatter Plot of Vaccine Hesitancy vs. Ethnicity Percentage",
+    x = "Ethnicity Percentage (%)",
+    y = "Estimated Hesitancy (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    legend.position = "none"
+  ) +
+  facet_wrap(~ Ethnicity, scales = "free_x")
+
+# Convert to an interactive plotly plot
+v6_interactive <- ggplotly(v6, tooltip = "text")
+
+# Display the interactive plot
+v6_interactive
+```
+
+
+
+***Conclusion***
+The different variables we looked into when looking into various variables and there possible relationship with vaccine hesitancy rates are geographical location, social vulnerability index, ethnicity, and vaccination level.
+
+Geography: Based on these visualizations and the difference from max to min of estimate rates I would conclude that hesitancy rates and states have a correlation. I would also conclude that hesitancy and non hesitancy appear to be inversely related and the higher the rate of hesitancy, the lower the rate of non hesitancy. 
+
+Social Vulnerability Index (SVI): High vulnerability has the highest average estimated hesitancy. Very low vulnerability has the lowest rates of hesitancy.
+
+Ethnicity: Based on this visualization Percent non-Hispanic American Indian/Alaska Native had the highest rates of hesitancy and Percent non-Hispanic Native Hawaiian/Pacific Islander had the lowest rates of hesitancy.
+
+Vaccination Level: The graph suggests that there is no correlation between hesitancy rates and vaccination level.
+
+Based on these outputs intervention can be implemented to target various states and ethnicities to promote vaccinations. I would also suggest focusing on highly vulnerable populations. However, the data suggests that there is no need to target areas with low levels of vaccinations.
+
+
+
+
+
+
 

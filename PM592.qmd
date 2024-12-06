@@ -1,0 +1,180 @@
+---
+title: "PM592 Final"
+author: "Nicole Tang"
+format: html
+embed-resources: true
+fig-width: 9
+fig-height: 6
+---
+
+PM 592
+```{r setup, message=FALSE, echo=FALSE, warning=FALSE}
+library(data.table)
+library(leaflet)
+library(tidyverse)
+library(data.table)
+library(R.utils)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(gganimate)
+library(ggforce)
+library(tidytext)
+library(tidyr)
+library(readr)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(plotly)
+```
+## Data Analysis for Covid 19 Vaccine Hesitancy and possible demographic and geographic correlations
+
+***Introduction***
+
+COVID-19 vaccine hesitancy refers to the reluctance or refusal to get vaccinated despite the availability of vaccines. Vaccination plays a crucial role in controlling the pandemic by reducing the spread of the virus, preventing severe illness, and decreasing hospitalization and death rates. The COVID-19 vaccines have been proven to be highly effective in boosting immunity and protecting not only individuals but also communities by contributing to herd immunity. However, hesitancy has been influenced by factors such as misinformation, distrust in healthcare systems or government authorities, concerns about the speed of vaccine development, and fears about potential side effects. Social, cultural, and political contexts have also shaped people's attitudes toward vaccines. Addressing vaccine hesitancy requires comprehensive public health strategies that include transparent communication, community engagement, and efforts to build trust by addressing the specific concerns and barriers faced by different populations.
+
+
+The CDC has published a data set about vaccine Hesitancy for COVID-19 in 2021. This data set has various demographic information showing information by county, state, ethnicity, and vulnerability. Hesitancy is measured by percentage of the population. This data set also looks into varying levels of hesitancy: hesitant, hesitant or unsure, or strongly hesitant. Data set origin: https://data.cdc.gov/Vaccinations/Vaccine-Hesitancy-for-COVID-19-County-and-local-es/q9mh-h2tw/about_data
+
+My objective is to observe any possible correlations between demographic and geological factors and the rates of vaccine hesitancy.
+
+**Research Question**
+Are there any correlations between demographic and geological factors and the rates of vaccine hesitancy?
+
+***Methods***
+**Data Cleaning and Wrangling**
+A csv file downloaded to my files from the CDC website was read into a data frame. Rows with NA were removed. One of the data columns held latitude and longitudinal information in the data type "Point". So, I coded two new variable columns for latitude and longitude so it is in a more usable form for future visualizations.
+
+
+```{r, echo = FALSE}
+#read in csv
+data <- read_csv("Vaccine_Hesitancy_for_COVID-19__County_and_local_estimates_20241025.csv", show_col_types = FALSE)
+
+#test for success
+#head(data)
+
+initial_row_count <- nrow(data)
+
+#remove rows with NA
+data <- data %>%
+  drop_na()
+
+final_row_count <- nrow(data)
+
+rows_dropped <- initial_row_count - final_row_count
+#print(rows_dropped)
+
+#mutate data type of long and lat
+data <- data %>%
+  mutate(
+    geo_point_clean = str_remove_all(`Geographical Point`, "POINT \\(|\\)"),
+    long = as.numeric(str_split_fixed(geo_point_clean, " ", 2)[, 1]),
+    lat = as.numeric(str_split_fixed(geo_point_clean, " ", 2)[, 2])
+  ) %>%
+  select(-geo_point_clean)
+
+region_lookup <- data.frame(
+  State = c("CONNECTICUT", "MAINE", "MASSACHUSETTS", "NEW HAMPSHIRE", "RHODE ISLAND", "VERMONT","DISTRICT OF COLUMBIA", 
+            "NEW JERSEY", "NEW YORK", "PENNSYLVANIA", 
+            "ILLINOIS", "INDIANA", "IOWA", "KANSAS", "MICHIGAN", "MINNESOTA", "MISSOURI", "NEBRASKA", "NORTH DAKOTA", 
+            "OHIO", "SOUTH DAKOTA", "WISCONSIN", 
+            "ALABAMA", "ARKANSAS", "DELAWARE", "FLORIDA", "GEORGIA", "KENTUCKY", "LOUISIANA", "MARYLAND", "MISSISSIPPI", 
+            "NORTH CAROLINA", "OKLAHOMA", "SOUTH CAROLINA", "TENNESSEE", "TEXAS", "VIRGINIA", "WEST VIRGINIA", 
+            "ALASKA", "ARIZONA", "CALIFORNIA", "COLORADO", "HAWAII", "IDAHO", "MONTANA", "NEVADA", "NEW MEXICO", 
+            "OREGON", "UTAH", "WASHINGTON", "WYOMING"),
+  Region = c(rep("Northeast", 10), rep("Midwest", 12), rep("South", 17), rep("West", 12))
+)
+
+data <- data %>%
+  left_join(region_lookup, by = "State")
+
+#test for success
+#summary(data)
+
+```
+
+**Aggregate Hesitancy Rates by State**
+I created a new data frame with State as the primary key and get the mean hesitancy. I created a new data frame with State as the primary key and get the mean not hesitant. The mean not hesitant was calculated by subtracting hesitant, hesitant or unsure, and strongly hesitant from 100. Join these two dfs to have a df with both hesitancy variables. Make another df with state as primary key and add lat and long variables. Merge with the hesitancy table to have a table with pk: state and variables: estimated hesitant, not hesitant, lat, long. The summary statistics are tabulated as follows.
+```{r, echo = FALSE}
+
+#calculate the average estimated hesitant rate per state and add to new df
+mean_hesitancy <- aggregate(data$'Estimated hesitant', by = list(data$'State Code'), FUN = mean, na.rm = TRUE)
+colnames(mean_hesitancy) <- c("State_Code", "Estimated_Hesitant")
+
+#calculate not hesitant rate
+data$Estimated_not_hesitant <- 100 - (data$'Estimated hesitant' + 
+                                        data$'Estimated hesitant or unsure' + 
+                                        data$'Estimated strongly hesitant')
+
+#calculate the not hesitant rate per state and add to new df
+mean_not_hesitant <- aggregate(data$'Estimated_not_hesitant', by = list(data$'State Code'), FUN = mean, na.rm = TRUE)
+colnames(mean_not_hesitant) <- c("State_Code", "Estimated_not_hesitant")
+
+#join the two dfs using State
+mean_hesitancy <- merge(mean_hesitancy, mean_not_hesitant, by = "State_Code")
+
+#make another df with lat and long
+state_coords <- unique(data[, c("State Code", "long", "lat")])
+
+# Merge long and lat df
+mean_hesitancy <- merge(mean_hesitancy, state_coords, by.x = "State_Code", by.y = "State Code", all.x = TRUE)
+
+region_lookup <- data.frame(
+  State_Code = c("CT", "ME", "MA", "NH", "RI", "VT", "NJ", "NY", "PA", "DC",
+                   "IL", "IN", "IA", "KS", "MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI",
+                   "AL", "AR", "DE", "FL", "GA", "KY", "LA", "MD", "MS", "NC", "OK", "SC", "TN", "TX", "VA", "WV",
+                   "AK", "AZ", "CA", "CO", "HI", "ID", "MT", "NV", "NM", "OR", "UT", "WA", "WY"),
+  Region = c(rep("Northeast", 10), rep("Midwest", 12), rep("South", 17), rep("West", 12))
+)
+
+mean_hesitancy <- mean_hesitancy %>%
+  left_join(region_lookup, by = "State_Code")
+
+
+#check for df successful merging
+#head(mean_hesitancy)
+```
+
+```{r, echo = FALSE}
+summary_table <- mean_hesitancy %>%
+  summarise(
+    Mean_Hesitant = mean(Estimated_Hesitant, na.rm = TRUE),
+    SD_Hesitant = sd(Estimated_Hesitant, na.rm = TRUE),
+    Min_Hesitant = min(Estimated_Hesitant, na.rm = TRUE),
+    Max_Hesitant = max(Estimated_Hesitant, na.rm = TRUE),
+    Mean_Not_Hesitant = mean(Estimated_not_hesitant, na.rm = TRUE),
+    SD_Not_Hesitant = sd(Estimated_not_hesitant, na.rm = TRUE),
+    Min_Not_Hesitant = min(Estimated_not_hesitant, na.rm = TRUE),
+    Max_Not_Hesitant = max(Estimated_not_hesitant, na.rm = TRUE)
+  )
+
+# Use kable to create a publication-quality table
+table <- kable(summary_table, caption = "Summary Statistics for Vaccine Hesitancy",
+      col.names = c("Mean Hesitant (%)", "SD Hesitant", "Min Hesitant (%)", "Max Hesitant (%)",
+                    "Mean Not Hesitant (%)", "SD Not Hesitant", "Min Not Hesitant (%)", "Max Not Hesitant (%)")) %>%
+  kable_styling(full_width = FALSE, position = "center")
+
+table
+```
+
+**Aggregate Hesitancy Rates by Ethnicity**
+The data set has columns for each ethnicity and the percentage of that ethnicity in the region. I made a new cat column that's value is the predominant ethnicity of that location. I then averaged the estimated hesitancy grouping by ethnicity.
+```{r, echo = FALSE}
+ethnicities <- c("Percent Hispanic", 
+                 "Percent non-Hispanic American Indian/Alaska Native",
+                 "Percent non-Hispanic Asian",
+                 "Percent non-Hispanic Black",
+                 "Percent non-Hispanic Native Hawaiian/Pacific Islander",
+                 "Percent non-Hispanic White")
+
+# Use max.col to determine the predominant ethnicity
+data$Predominant_Ethnicity <- colnames(data[ethnicities])[max.col(data[ethnicities], ties.method = "first")]
+
+# Print the first few rows to verify the new column
+#head(data[c("State", "Predominant_Ethnicity")])
+
+# Calculate the average estimated hesitant percentage per state
+ethnicity_df <- aggregate(data$'Estimated hesitant', by = list(data$'Predominant_Ethnicity'), FUN = mean, na.rm = TRUE)
+colnames(ethnicity_df) <- c("ethnicity", "Estimated_Hesitant")
+
+ethnicity_df$ethnicity <- gsub("Percent ", "", ethnicity_df$ethnicity)

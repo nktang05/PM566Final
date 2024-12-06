@@ -4,11 +4,16 @@ project:
 
 website:
   title: "PM566Final Project Website"
+  page-navigation: true
   navbar:
     left:
       - href: index.qmd
         text: Home
-      - about.qmd
+      - href: about.qmd
+        text: PM566 Final
+      - href: PM592.qmd
+        text: PM592 Final
+
 
 format:
   html:
