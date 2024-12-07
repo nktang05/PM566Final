@@ -148,7 +148,7 @@ summary_table <- mean_hesitancy %>%
     Max_Not_Hesitant = max(Estimated_not_hesitant, na.rm = TRUE)
   )
 
-# Use kable to create a publication-quality table
+#Use kable to create a publication-quality table
 table <- kable(summary_table, caption = "Summary Statistics for Vaccine Hesitancy",
       col.names = c("Mean Hesitant (%)", "SD Hesitant", "Min Hesitant (%)", "Max Hesitant (%)",
                     "Mean Not Hesitant (%)", "SD Not Hesitant", "Min Not Hesitant (%)", "Max Not Hesitant (%)")) %>%
@@ -167,13 +167,13 @@ ethnicities <- c("Percent Hispanic",
                  "Percent non-Hispanic Native Hawaiian/Pacific Islander",
                  "Percent non-Hispanic White")
 
-# Use max.col to determine the predominant ethnicity
+#Use max.col to determine the predominant ethnicity
 data$Predominant_Ethnicity <- colnames(data[ethnicities])[max.col(data[ethnicities], ties.method = "first")]
 
-# Print the first few rows to verify the new column
+#Print the first few rows to verify the new column
 #head(data[c("State", "Predominant_Ethnicity")])
 
-# Calculate the average estimated hesitant percentage per state
+#Calculate the average estimated hesitant percentage per state
 ethnicity_df <- aggregate(data$'Estimated hesitant', by = list(data$'Predominant_Ethnicity'), FUN = mean, na.rm = TRUE)
 colnames(ethnicity_df) <- c("ethnicity", "Estimated_Hesitant")
 

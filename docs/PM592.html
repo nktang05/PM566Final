@@ -4970,9 +4970,6 @@ window.Quarto = {
    
   <ul>
   <li><a href="#data-analysis-for-covid-19-vaccine-hesitancy-and-possible-demographic-and-geographic-correlations" id="toc-data-analysis-for-covid-19-vaccine-hesitancy-and-possible-demographic-and-geographic-correlations" class="nav-link active" data-scroll-target="#data-analysis-for-covid-19-vaccine-hesitancy-and-possible-demographic-and-geographic-correlations">Data Analysis for Covid 19 Vaccine Hesitancy and possible demographic and geographic correlations</a></li>
-  <li><a href="#use-max.col-to-determine-the-predominant-ethnicity" id="toc-use-max.col-to-determine-the-predominant-ethnicity" class="nav-link" data-scroll-target="#use-max.col-to-determine-the-predominant-ethnicity">Use max.col to determine the predominant ethnicity</a></li>
-  <li><a href="#print-the-first-few-rows-to-verify-the-new-column" id="toc-print-the-first-few-rows-to-verify-the-new-column" class="nav-link" data-scroll-target="#print-the-first-few-rows-to-verify-the-new-column">Print the first few rows to verify the new column</a></li>
-  <li><a href="#calculate-the-average-estimated-hesitant-percentage-per-state" id="toc-calculate-the-average-estimated-hesitant-percentage-per-state" class="nav-link" data-scroll-target="#calculate-the-average-estimated-hesitant-percentage-per-state">Calculate the average estimated hesitant percentage per state</a></li>
   </ul>
 </nav>
     </div>
@@ -5049,18 +5046,9 @@ window.Quarto = {
 </div>
 <p><strong>Aggregate Hesitancy Rates by Ethnicity</strong> The data set has columns for each ethnicity and the percentage of that ethnicity in the region. I made a new cat column that’s value is the predominant ethnicity of that location. I then averaged the estimated hesitancy grouping by ethnicity.</p>
 <p>ethnicities &lt;- c(“Percent Hispanic”, “Percent non-Hispanic American Indian/Alaska Native”, “Percent non-Hispanic Asian”, “Percent non-Hispanic Black”, “Percent non-Hispanic Native Hawaiian/Pacific Islander”, “Percent non-Hispanic White”)</p>
-</section>
-<section id="use-max.col-to-determine-the-predominant-ethnicity" class="level1">
-<h1>Use max.col to determine the predominant ethnicity</h1>
-<p>data$Predominant_Ethnicity &lt;- colnames(data[ethnicities])[max.col(data[ethnicities], ties.method = “first”)]</p>
-</section>
-<section id="print-the-first-few-rows-to-verify-the-new-column" class="level1">
-<h1>Print the first few rows to verify the new column</h1>
-<p>#head(data[c(“State”, “Predominant_Ethnicity”)])</p>
-</section>
-<section id="calculate-the-average-estimated-hesitant-percentage-per-state" class="level1">
-<h1>Calculate the average estimated hesitant percentage per state</h1>
-<p>ethnicity_df &lt;- aggregate(data<span class="math inline">\(&#39;Estimated hesitant&#39;, by = list(data\)</span>’Predominant_Ethnicity’), FUN = mean, na.rm = TRUE) colnames(ethnicity_df) &lt;- c(“ethnicity”, “Estimated_Hesitant”)</p>
+<p>#Use max.col to determine the predominant ethnicity data$Predominant_Ethnicity &lt;- colnames(data[ethnicities])[max.col(data[ethnicities], ties.method = “first”)]</p>
+<p>#Print the first few rows to verify the new column #head(data[c(“State”, “Predominant_Ethnicity”)])</p>
+<p>#Calculate the average estimated hesitant percentage per state ethnicity_df &lt;- aggregate(data<span class="math inline">\(&#39;Estimated hesitant&#39;, by = list(data\)</span>’Predominant_Ethnicity’), FUN = mean, na.rm = TRUE) colnames(ethnicity_df) &lt;- c(“ethnicity”, “Estimated_Hesitant”)</p>
 <p>ethnicity_df<span class="math inline">\(ethnicity &lt;- gsub(&quot;Percent &quot;, &quot;&quot;, ethnicity_df\)</span>ethnicity)</p>
 
 

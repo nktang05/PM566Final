@@ -379,7 +379,7 @@ v6_interactive <- ggplotly(v6, tooltip = "text")
 v6_interactive
 ```
 **Figure 5: Average Hesitancy Rates by Ethnicity**
-Some groups like non-Hispanic Asians appear to have lower overall hesitancy, while groups such as non-Hispanic Black and non-Hispanic American Indian/Alaska Native show a wider spread and higher average hesitancy.
+This graph displays the relationship between the percentage of an ethnicity in a population and the estimated hesitancy levels. Some groups like non-Hispanic Asians appear to have lower overall hesitancy, while groups such as non-Hispanic Black and non-Hispanic American Indian/Alaska Native show a wider spread and higher average hesitancy.
 
 
 
