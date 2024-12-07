@@ -3,7 +3,7 @@ project:
   output-dir: docs
 
 website:
-  title: "PM566Final Project Website"
+  title: "PM566/PM592 Finals"
   page-navigation: true
   navbar:
     left:

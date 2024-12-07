@@ -1,5 +1,5 @@
 ---
-title: "PM566 Final"
+title: "PM566: Data Analysis for Covid 19 Vaccine Hesitancy and possible demographic and geographic correlations"
 author: "Nicole Tang"
 format: html
 embed-resources: true
@@ -25,7 +25,7 @@ library(knitr)
 library(kableExtra)
 library(plotly)
 ```
-## Data Analysis for Covid 19 Vaccine Hesitancy and possible demographic and geographic correlations
+## Description
 
 
 [View the Full Analysis in My Written Report](https://github.com/nktang05/PM566Final/blob/main/Final%20Project.pdf)
@@ -40,14 +40,15 @@ This data set has various demographic information showing information by county,
 Data set origin: https://data.cdc.gov/Vaccinations/Vaccine-Hesitancy-for-COVID-19-County-and-local-es/q9mh-h2tw/about_data
 
 
-**Research Question**
+**Research Questions**
+
 Are there any correlations between state and region and the rates of vaccine hesitancy?
 Are there any correlations between the social vulnerability index and rates of vaccine hesitancy?
 Are there any correlations between COVID-19 vaccine coverage and rates of vaccine hesitancy?
 Are there any correlations between ethnicity and rates of vaccine hesitancy?
 
 
-
+## Analysis
 ```{r, echo = FALSE}
 #read in csv
 data <- read_csv("Vaccine_Hesitancy_for_COVID-19__County_and_local_estimates_20241025.csv", show_col_types = FALSE)
@@ -317,7 +318,7 @@ v4.5 <- ggplot(data, aes(x = `CVAC Level Of Concern`, y = `Estimated hesitant`, 
 ))) +
   geom_boxplot() +
   labs(
-    title = "Box Plot of COVID-19 Vaccine Hesitancy by CVAC Level Of Concern",
+    title = "Fig 4. Box Plot of COVID-19 Vaccine Hesitancy by CVAC Level Of Concern",
     x = "CVAC Level Of Concern",
     y = "Estimated Hesitancy (%)"
   ) +
@@ -358,7 +359,7 @@ v6 <- ggplot(data_eth, aes(x = Ethnicity_Percentage, y = `Estimated hesitant`, c
 ))) +
   geom_point(alpha = 0.7) + 
   labs(
-    title = "Scatter Plot of Vaccine Hesitancy vs. Ethnicity Percentage",
+    title = "Fig 5.Scatter Plot of Vaccine Hesitancy vs. Ethnicity Percentage",
     x = "Ethnicity Percentage (%)",
     y = "Estimated Hesitancy (%)"
   ) +

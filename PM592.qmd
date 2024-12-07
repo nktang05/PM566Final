@@ -1,5 +1,5 @@
 ---
-title: "PM592 Final"
+title: "PM592:Data Analysis for Covid 19 Vaccine Hesitancy and possible demographic and geographic correlations"
 author: "Nicole Tang"
 format: html
 embed-resources: true

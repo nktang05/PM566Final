@@ -1,8 +1,7 @@
 ---
-title: "PM566Final Website Project"
-description: "Final project"
+title: "Home"
+description: "Final projects for PM566 and PM599"
 ---
 
 Author: Nicole Tang
 
-by me
