@@ -7,7 +7,7 @@ fig-width: 9
 fig-height: 6
 ---
 
-PM 592
+PM 592 Final Project
 ```{r setup, message=FALSE, echo=FALSE, warning=FALSE}
 library(data.table)
 library(leaflet)
@@ -16,6 +16,8 @@ library(data.table)
 library(R.utils)
 library(dplyr)
 library(ggplot2)
+library(ggfortify)
+library(ggpmisc)
 library(lubridate)
 library(gganimate)
 library(ggforce)
@@ -26,25 +28,53 @@ library(dplyr)
 library(knitr)
 library(kableExtra)
 library(plotly)
+library(broom)
+library(knitr)
+library(kableExtra)
+library(MASS)
+library(GGally)
+library(olsrr)
 ```
-## Data Analysis for Covid 19 Vaccine Hesitancy and possible demographic and geographic correlations
+Link to full code on Github: https://github.com/nktang05/PM566Final/blob/main/PM592.qmd
+
+## Introduction
 
 ***Introduction***
 
-COVID-19 vaccine hesitancy refers to the reluctance or refusal to get vaccinated despite the availability of vaccines. Vaccination plays a crucial role in controlling the pandemic by reducing the spread of the virus, preventing severe illness, and decreasing hospitalization and death rates. The COVID-19 vaccines have been proven to be highly effective in boosting immunity and protecting not only individuals but also communities by contributing to herd immunity. However, hesitancy has been influenced by factors such as misinformation, distrust in healthcare systems or government authorities, concerns about the speed of vaccine development, and fears about potential side effects. Social, cultural, and political contexts have also shaped people's attitudes toward vaccines. Addressing vaccine hesitancy requires comprehensive public health strategies that include transparent communication, community engagement, and efforts to build trust by addressing the specific concerns and barriers faced by different populations.
+COVID-19 vaccine hesitancy refers to the reluctance or refusal to get vaccinated despite the availability of vaccines. Vaccination plays a crucial role in controlling the pandemic by reducing the spread of the virus, preventing severe illness, and decreasing hospitalization and death rates. However, hesitancy has been influenced by factors such as misinformation, distrust in healthcare systems or government authorities, concerns about the speed of vaccine development, and fears about potential side effects. Social, cultural, and political contexts have also shaped people’s attitudes toward vaccines. 
 
+This data set has various demographic information showing information by county, state, ethnicity, COVID-19 vaccine coverage (CVAC) and social vulnerability index (SVI). In order to determine hesitancy levels, people were surveyed  “Once a vaccine to prevent COVID-19 is available to you, would you…get a vaccine?” and the following options were: 1) “definitely get a vaccine”; 2) “probably get a vaccine”; 3) “unsure”; 4) “probably not get a vaccine”; 5) “definitely not get a vaccine”. his data set also looks into varying levels of hesitancy: hesitant, hesitant or unsure, or strongly hesitant. People who responded “probably not” or “definitely not” were categorized as hesitant.
 
-The CDC has published a data set about vaccine Hesitancy for COVID-19 in 2021. This data set has various demographic information showing information by county, state, ethnicity, and vulnerability. Hesitancy is measured by percentage of the population. This data set also looks into varying levels of hesitancy: hesitant, hesitant or unsure, or strongly hesitant. Data set origin: https://data.cdc.gov/Vaccinations/Vaccine-Hesitancy-for-COVID-19-County-and-local-es/q9mh-h2tw/about_data
+Data set origin: https://data.cdc.gov/Vaccinations/Vaccine-Hesitancy-for-COVID-19-County-and-local-es/q9mh-h2tw/about_data
 
-My objective is to observe any possible correlations between demographic and geological factors and the rates of vaccine hesitancy.
+I also utilized a data set on educational attainment (Bachelors degree or higher) by state for the year 2021.
+Data set origin:https://fred.stlouisfed.org/release/tables?rid=330&eid=391444&od=2021-01-01#
+
+I also utilized a data set on COVID-19 Mortality by state for 2021.
+Data set origin: https://www.cdc.gov/nchs/pressroom/sosmap/covid19_mortality_final/COVID19.htm
 
 **Research Question**
-Are there any correlations between demographic and geological factors and the rates of vaccine hesitancy?
+Are there any correlations between demographic, geographical, and social factors and the rates of vaccine hesitancy?
 
-***Methods***
+**Identify a health-related outcome variable that you want to assess**
+The heath variable I am going to assess is rates of vaccine hesitancy.
+
+**Identify 2 independent variables that may be associated with that health outcome**
+The first independent variable is social vulnerability index (SVI). SVI is measure of how much a community is vulnerable based on things like socioeconomic status, minority status, and housing. Higher SVI scores may reflect structural barriers and lower trust in public health, potentially leading to higher vaccine hesitancy.
+The second independent variable is vaccine coverage index (CVAC). VAC measures supply and demand challenges to vaccine rollout based on healthcare accessibility barriers, sociodemographic barriers, and historic undervaccination. Higher CVAC scores indicate greater challenges in vaccine distribution, which may correlate with increased hesitancy.
+The third independent variable is predominant ethnicity. Cultural factors may influence vaccine hesitancy among specific groups.
+
+**Identify 1 independent variable that may be a confounder, and 1 independent variable that may be an effect modifier **
+The first possible confounder is % Adults of fully vaccinated. It may be a confounder because higher vaccination rates could reduce hesitancy by normalizing it or reflecting better healthcare infrastructure. At the same time, vaccination rates may also reflect better healthcare infrastructure which could influence predictors like SVI and CVAC.
+The second possible confounder is % Bachelors degree or above. It may be a confounder because higher educational attainment is often associated with greater health literacy and lower vaccine hesitancy. Communities with higher education levels might have lower SVI scores and higher CVAC scores due to better socioeconomic conditions.
+
+The first possible effect modifier is region. It may be an effect modifier because vaccine hesitancy patterns vary across regions due to cultural, political, and healthcare access differences.
+The second possible effect modifier is covid death rates per 100,000. It may be an effect modifier because higher death rates may increase the perceived threat of COVID-19, modifying the relationship between predictors like CVAC or SVI and vaccine hesitancy.
+
+
+## Methods
 **Data Cleaning and Wrangling**
-A csv file downloaded to my files from the CDC website was read into a data frame. Rows with NA were removed. One of the data columns held latitude and longitudinal information in the data type "Point". So, I coded two new variable columns for latitude and longitude so it is in a more usable form for future visualizations.
-
+A csv file downloaded to my files from the CDC website was read into a data frame. 280 observations with NA were removed to clean the data. One of the data columns held latitude and longitudinal information in the data type “Point”. So, I coded two new variable columns for latitude and longitude so it is in a more usable form for future visualizations. I also added a column for region (Northeast, Midwest, South, West) based on the state. The regions were picked based on Census Bureau designated regions. I also utilized a data set on educational attainment (Bachelors degree or higher) by state for the year 2021 to test for possible correlations with education level.I also utilized a data set on COVID-19 Mortality by state for 2021 from the CDC to test for possible correlations with covid death rates. The following variables are continuous: Average percent of adults fully vaccinated, Average percent of adults with a bachelors degree or higher, Average covid death rate per 100,000, Average SVI, and Average CVAC. Region and predominant ethnicity are categorical.
 
 ```{r, echo = FALSE}
 #read in csv
@@ -65,13 +95,7 @@ rows_dropped <- initial_row_count - final_row_count
 #print(rows_dropped)
 
 #mutate data type of long and lat
-data <- data %>%
-  mutate(
-    geo_point_clean = str_remove_all(`Geographical Point`, "POINT \\(|\\)"),
-    long = as.numeric(str_split_fixed(geo_point_clean, " ", 2)[, 1]),
-    lat = as.numeric(str_split_fixed(geo_point_clean, " ", 2)[, 2])
-  ) %>%
-  select(-geo_point_clean)
+
 
 region_lookup <- data.frame(
   State = c("CONNECTICUT", "MAINE", "MASSACHUSETTS", "NEW HAMPSHIRE", "RHODE ISLAND", "VERMONT","DISTRICT OF COLUMBIA", 
@@ -91,74 +115,16 @@ data <- data %>%
 #test for success
 #summary(data)
 
+state_data <- read_csv("data/592data.csv", show_col_types = FALSE)
+data <- data %>%
+  left_join(state_data, by = "State")
+
 ```
 
-**Aggregate Hesitancy Rates by State**
-I created a new data frame with State as the primary key and get the mean hesitancy. I created a new data frame with State as the primary key and get the mean not hesitant. The mean not hesitant was calculated by subtracting hesitant, hesitant or unsure, and strongly hesitant from 100. Join these two dfs to have a df with both hesitancy variables. Make another df with state as primary key and add lat and long variables. Merge with the hesitancy table to have a table with pk: state and variables: estimated hesitant, not hesitant, lat, long. The summary statistics are tabulated as follows.
-```{r, echo = FALSE}
 
-#calculate the average estimated hesitant rate per state and add to new df
-mean_hesitancy <- aggregate(data$'Estimated hesitant', by = list(data$'State Code'), FUN = mean, na.rm = TRUE)
-colnames(mean_hesitancy) <- c("State_Code", "Estimated_Hesitant")
-
-#calculate not hesitant rate
-data$Estimated_not_hesitant <- 100 - (data$'Estimated hesitant' + 
-                                        data$'Estimated hesitant or unsure' + 
-                                        data$'Estimated strongly hesitant')
-
-#calculate the not hesitant rate per state and add to new df
-mean_not_hesitant <- aggregate(data$'Estimated_not_hesitant', by = list(data$'State Code'), FUN = mean, na.rm = TRUE)
-colnames(mean_not_hesitant) <- c("State_Code", "Estimated_not_hesitant")
-
-#join the two dfs using State
-mean_hesitancy <- merge(mean_hesitancy, mean_not_hesitant, by = "State_Code")
-
-#make another df with lat and long
-state_coords <- unique(data[, c("State Code", "long", "lat")])
-
-# Merge long and lat df
-mean_hesitancy <- merge(mean_hesitancy, state_coords, by.x = "State_Code", by.y = "State Code", all.x = TRUE)
-
-region_lookup <- data.frame(
-  State_Code = c("CT", "ME", "MA", "NH", "RI", "VT", "NJ", "NY", "PA", "DC",
-                   "IL", "IN", "IA", "KS", "MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI",
-                   "AL", "AR", "DE", "FL", "GA", "KY", "LA", "MD", "MS", "NC", "OK", "SC", "TN", "TX", "VA", "WV",
-                   "AK", "AZ", "CA", "CO", "HI", "ID", "MT", "NV", "NM", "OR", "UT", "WA", "WY"),
-  Region = c(rep("Northeast", 10), rep("Midwest", 12), rep("South", 17), rep("West", 12))
-)
-
-mean_hesitancy <- mean_hesitancy %>%
-  left_join(region_lookup, by = "State_Code")
-
-
-#check for df successful merging
-#head(mean_hesitancy)
-```
-
-```{r, echo = FALSE}
-summary_table <- mean_hesitancy %>%
-  summarise(
-    Mean_Hesitant = mean(Estimated_Hesitant, na.rm = TRUE),
-    SD_Hesitant = sd(Estimated_Hesitant, na.rm = TRUE),
-    Min_Hesitant = min(Estimated_Hesitant, na.rm = TRUE),
-    Max_Hesitant = max(Estimated_Hesitant, na.rm = TRUE),
-    Mean_Not_Hesitant = mean(Estimated_not_hesitant, na.rm = TRUE),
-    SD_Not_Hesitant = sd(Estimated_not_hesitant, na.rm = TRUE),
-    Min_Not_Hesitant = min(Estimated_not_hesitant, na.rm = TRUE),
-    Max_Not_Hesitant = max(Estimated_not_hesitant, na.rm = TRUE)
-  )
-
-#Use kable to create a publication-quality table
-table <- kable(summary_table, caption = "Summary Statistics for Vaccine Hesitancy",
-      col.names = c("Mean Hesitant (%)", "SD Hesitant", "Min Hesitant (%)", "Max Hesitant (%)",
-                    "Mean Not Hesitant (%)", "SD Not Hesitant", "Min Not Hesitant (%)", "Max Not Hesitant (%)")) %>%
-  kable_styling(full_width = FALSE, position = "center")
-
-table
-```
 
 **Aggregate Hesitancy Rates by Ethnicity**
-The data set has columns for each ethnicity and the percentage of that ethnicity in the region. I made a new cat column that's value is the predominant ethnicity of that location. I then averaged the estimated hesitancy grouping by ethnicity.
+The data set has columns for each ethnicity and the percentage of that ethnicity in the region. I made a new categorical variable column that's value is the predominant ethnicity of that location.
 ```{r, echo = FALSE}
 ethnicities <- c("Percent Hispanic", 
                  "Percent non-Hispanic American Indian/Alaska Native",
@@ -170,6 +136,11 @@ ethnicities <- c("Percent Hispanic",
 #Use max.col to determine the predominant ethnicity
 data$Predominant_Ethnicity <- colnames(data[ethnicities])[max.col(data[ethnicities], ties.method = "first")]
 
+data$Predominant_Ethnicity <- gsub("Percent ", "", data$Predominant_Ethnicity)
+
+data$Predominant_Ethnicity <- factor(data$Predominant_Ethnicity,
+                                     levels = unique(data$Predominant_Ethnicity))
+
 #Print the first few rows to verify the new column
 #head(data[c("State", "Predominant_Ethnicity")])
 
@@ -178,3 +149,444 @@ ethnicity_df <- aggregate(data$'Estimated hesitant', by = list(data$'Predominant
 colnames(ethnicity_df) <- c("ethnicity", "Estimated_Hesitant")
 
 ethnicity_df$ethnicity <- gsub("Percent ", "", ethnicity_df$ethnicity)
+```
+
+
+
+
+## Section 1: Preliminary Analysis
+
+```{r, echo = FALSE}
+summary_table <- data %>%
+  summarise(
+    Mean_Hesitant = mean(`Estimated hesitant`, na.rm = TRUE),
+    SD_Hesitant = sd(`Estimated hesitant`, na.rm = TRUE),
+    Min_Hesitant = min(`Estimated hesitant`, na.rm = TRUE),
+    Max_Hesitant = max(`Estimated hesitant`, na.rm = TRUE)
+  )
+
+#Use kable to create a publication-quality table
+table <- kable(summary_table, caption = "Summary Statistics for Vaccine Hesitancy",
+      col.names = c("Mean Hesitant (%)", "SD Hesitant", "Min Hesitant (%)", "Max Hesitant (%)")) %>%
+  kable_styling(full_width = FALSE, position = "center")
+
+table
+```
+Basic preliminary analysis of hesitancy indicates a mean hesitancy at 13.42% with a standard deviation of 4.7% and minimun of 2.69% and maximum of 26.7%
+
+```{r, echo = FALSE}
+# Numeric descriptive statistics
+numeric_stats <- data %>%
+  summarise(
+    N = n(),
+    Mean_Percent_Adults_Fully_Vaccinated = mean(`Percent adults fully vaccinated against COVID-19 (as of 6/10/21)`, na.rm = TRUE),
+    SD_Percent_Adults_Fully_Vaccinated = sd(`Percent adults fully vaccinated against COVID-19 (as of 6/10/21)`, na.rm = TRUE),
+    Mean_Percent_Bachelors_Degree = mean(`education`, na.rm = TRUE),
+    SD_Percent_Bachelors_Degree = sd(`education`, na.rm = TRUE),
+    Mean_COVID_Death_Rate = mean(`covidDeathRateper100,000`, na.rm = TRUE),
+    SD_COVID_Death_Rate = sd(`covidDeathRateper100,000`, na.rm = TRUE),
+    Mean_svi = mean(`Social Vulnerability Index (SVI)`, na.rm = TRUE),
+    sd_svi = sd(`Social Vulnerability Index (SVI)`, na.rm = TRUE),
+    Mean_cvac = mean(`CVAC level of concern for vaccination rollout`, na.rm = TRUE),
+    sd_cvac = sd(`CVAC level of concern for vaccination rollout`, na.rm = TRUE),
+  )
+
+eth <- data %>%
+  group_by(`Predominant_Ethnicity`) %>%
+  summarise(
+    Count = n(),
+    Percentage = (n() / nrow(data)) * 100
+  ) %>%
+  rename(Category = `Predominant_Ethnicity`)
+
+reg <- data %>%
+  group_by(`Region`) %>%
+  summarise(
+    Count = n(),
+    Percentage = (n() / nrow(data)) * 100
+  ) %>%
+  rename(Category = `Region`)
+
+# Display numeric stats with kable
+
+kable(numeric_stats, caption = "Numeric Variable Descriptive Statistics")
+
+# Display SVI stats with kable
+
+kable(eth, caption = "Predominant Ethnicity")
+kable(reg, caption = "Region")
+
+```
+**Preliminary analysis of the variables:**
+Average percent of adults fully vaccinated:36.93% 
+
+Average percent of adults with a bachelors degree or higher: 33.09
+
+Average covid death rate per 100,000: 101.10
+
+Average SVI: .48
+
+Average CVAC: .47
+
+
+**% of areas with the predominant ethnicity being:**
+non-Hispanic White:	92.45%
+
+non-Hispanic Black: 4.47%
+
+non-Hispanic American Indian/Alaska Native: 1.15%
+
+non-Hispanic Asian: 0.069%
+
+Hispanic: 1.85%
+
+**% of reporting locations in the following regions:**
+Midwest: 36.86%
+
+Northeast: 7.62%
+
+South: 41.40%
+
+West: 14.12%
+
+
+## Section 2: Simply X, Y relationship
+
+
+```{r, echo = FALSE}
+library(broom)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Fit regression models for each predictor
+regression_svi <- lm(`Estimated hesitant` ~ `Social Vulnerability Index (SVI)`, data = data)
+regression_cvac <- lm(`Estimated hesitant` ~ `CVAC level of concern for vaccination rollout`, data = data)
+regression_vaccinated <- lm(`Estimated hesitant` ~ `Percent adults fully vaccinated against COVID-19 (as of 6/10/21)`, data = data)
+regression_bachelors <- lm(`Estimated hesitant` ~ education, data = data)
+regression_death_rate <- lm(`Estimated hesitant` ~ `covidDeathRateper100,000`, data = data)
+regression_region <- lm(`Estimated hesitant` ~ Region, data = data)
+regression_ethnicity <- lm(`Estimated hesitant` ~ Predominant_Ethnicity, data = data)
+
+# Extract summaries and add labels
+svi_summary <- tidy(regression_svi, conf.int = TRUE) %>%
+  mutate(Model = "Numeric: Social Vulnerability Index")
+
+cvac_summary <- tidy(regression_cvac, conf.int = TRUE) %>%
+  mutate(Model = "Numeric: CVAC Level of Concern")
+
+vaccinated_summary <- tidy(regression_vaccinated, conf.int = TRUE) %>%
+  mutate(Model = "Numeric: % Adults Fully Vaccinated")
+
+bachelors_summary <- tidy(regression_bachelors, conf.int = TRUE) %>%
+  mutate(Model = "Numeric: % Bachelors Degree or Above")
+
+death_rate_summary <- tidy(regression_death_rate, conf.int = TRUE) %>%
+  mutate(Model = "Numeric: COVID Death Rate per 100,000")
+
+ethnicity_summary <- tidy(regression_ethnicity, conf.int = TRUE) %>%
+  mutate(Model = "Categorical: Predominant Ethnicity")
+
+region_summary <- tidy(regression_region, conf.int = TRUE) %>%
+  mutate(Model = "Categorical: Region")
+
+# Combine all summaries
+combined_summary <- bind_rows(
+  svi_summary,
+  cvac_summary,
+  vaccinated_summary,
+  bachelors_summary,
+  death_rate_summary,
+  ethnicity_summary,
+  region_summary
+)
+
+
+
+# Calculate row indices for grouping
+num_rows_numeric <- nrow(svi_summary) + nrow(cvac_summary) + nrow(vaccinated_summary) + 
+                    nrow(bachelors_summary) + nrow(death_rate_summary)
+start_categorical_ethnicity <- num_rows_numeric + 1
+start_categorical_region <- start_categorical_ethnicity + nrow(ethnicity_summary)
+
+# Format the table
+kable(
+  combined_summary %>%
+    dplyr::select(Model, term, estimate, std.error, p.value, conf.low, conf.high),  # Select relevant columns
+  caption = "Table: Regression Results for Predictors of Vaccine Hesitancy",
+  col.names = c("Model", "Term", "Coefficient", "Standard Error", "P-Value", "Lower 95% CI", "Upper 95% CI")
+) %>%
+  kable_styling(full_width = FALSE, position = "center") %>%
+  pack_rows("Numeric Predictors", 1, num_rows_numeric) %>%
+  pack_rows("Categorical Predictors: Ethnicity", start_categorical_ethnicity, start_categorical_region - 1) %>%
+  pack_rows("Categorical Predictors: Region", start_categorical_region, nrow(combined_summary))
+
+```
+
+Simple regression anlaysis indicated that SVI was statistically significant with a p-value <.001 and a coefficient of 5.26, indicating for every unit increase in SVI, hesitancy percentage is expected to increase by 5.26. CVAC was statistically significant with a p-value <.001 and a coefficient of 7.11, indicating for every unit increase in CVSC, hesitancy percentage is expected to increase by 7.11. Percent of adults fully vaccinated was statistically significant with a p-value <.001 and a coefficient of 0.07, indicating for every unit increase in SVI, hesitancy percentage is expected to decrease by 0.07. Education was statistically significant with a p-value <.001 and a coefficient of 0.63, indicating for every unit increase in percent educated, hesitancy percentage is expected to decrease by 0.63. Covid deaths were not statistically significant indicating that they have no direct correlation with hesitancy levels. When looking at ethnicity with non hispanic white being the baseline, all other ethnicity groups are more likely to be hesitant except Hispanic. With the midwest as the baseline, all other regions are more likely to be more hesitant except the northeast which would be less hesitant.
+
+
+## Section 2: Check for confounders
+
+```{r, echo = FALSE}
+model1 <- lm(`Estimated hesitant` ~ `Social Vulnerability Index (SVI)` + `CVAC level of concern for vaccination rollout` + Predominant_Ethnicity, data = data)
+#summary(model1)
+
+# Model 2: vaccine-Adjusted
+model2 <- lm(`Estimated hesitant` ~ `Social Vulnerability Index (SVI)` + `CVAC level of concern for vaccination rollout` + Predominant_Ethnicity + `Percent adults fully vaccinated against COVID-19 (as of 6/10/21)`, data = data)
+#summary(model2)
+
+# Model 3: education-Adjusted
+model3 <- lm(`Estimated hesitant` ~ `Social Vulnerability Index (SVI)` + `CVAC level of concern for vaccination rollout` + Predominant_Ethnicity + education, data = data)
+#summary(model3)
+
+
+
+```
+I checked if percent adults fully vaccinated and education percentage were confounders on the independent variables, SVI, CVAC, and predominant ethnicity. From running the different models, percent adults fully vaccinated does not appear to be a confounder because the coefficients of the independent variables are similar to the coefficients in the model ran with this possible confounder. However, education appears to be a possible confounders. The initial model has the SVI coefficient at 1.40 and when adjusted for education is .60. It is important to note that in the model adjusting for education the SVI is no longer statistically significant. The initial model has the CVAC coefficient at 6.38 and when adjusted for education is 3.58 and is statisticallly significant. The model with education also has a R-squared of .50, higher than the original model with R-squared at .20, indicating a better fit when adjusted for education.
+
+## Section 2: Check for effect modification
+
+```{r, echo = FALSE}
+model2.1 <- lm(`Estimated hesitant` ~ `Social Vulnerability Index (SVI)` * Region + `CVAC level of concern for vaccination rollout` * Region + Predominant_Ethnicity * Region, data = data)
+
+#summary(model2.1)
+
+model2.2 <- lm(`Estimated hesitant` ~ `Social Vulnerability Index (SVI)` * `covidDeathRateper100,000` + `CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000` + Predominant_Ethnicity * `covidDeathRateper100,000`, data = data)
+
+#summary(model2.2)
+
+model2.3 <- lm(`Estimated hesitant` ~ `Social Vulnerability Index (SVI)` * `covidDeathRateper100,000` * Region + `CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000`* Region + Predominant_Ethnicity * `covidDeathRateper100,000`* Region, data = data)
+
+#summary(model2.3)
+
+```
+I then checked if region and covid deaths per 100,000 were possible effect modifiers. When testing region with SVI, regionSouth (2.36e-06) and regionWest (9.62e-12) both produce statistically significant results.When testing region with CVAC, regionSouth (0.002982) and regionNortheast (0.006293) both produce statistically significant results. When testing region with predominant ethnicity, regionSouth and Ethnicity non-Hispanic American Indian/Alaska Native (0.003821), regionWest and Ethnicity non-Hispanic American Indian/Alaska Native (1.87e-08), and regionSouth and Ethnicity Hispanic (0.041065) produce statistically significant results. When testing covid death rates with SVI it produces statistically significant results (< 2e-16).  When testing covid death rates with CVSC it produces statistically significant results (< 2e-16).  When testing covid death rates with ethnicity, Ethnicitynon-Hispanic American Indian/Alaska Native (0.000126) and Ethnicity non-Hispanic Asian ( 0.003208) both produce statistically significant results (< 2e-16). Based on these p value findings I concluded that region and covid death rates were both effect modifiers.
+
+
+## Section 3 Table 3: Final Model
+```{r, echo = FALSE}
+model1 <- lm(`Estimated hesitant` ~ `Social Vulnerability Index (SVI)` + `CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000`* Region + Predominant_Ethnicity * Region + education * `covidDeathRateper100,000`, data = data)
+
+#summary(model1)
+
+model_parsimonious <- stepAIC(model1, direction = "both", trace = FALSE)
+#summary(model_parsimonious)
+
+model <- lm(
+  formula = `Estimated hesitant` ~  +
+    (`CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000` * Region) +
+    (Region * Predominant_Ethnicity) +
+    (`covidDeathRateper100,000` * education),
+  data = data
+)
+
+#summary(model)
+
+modelx <- lm(
+  formula = `Estimated hesitant` ~  +
+    (`CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000` * Region) +
+    (Predominant_Ethnicity) +
+    (`covidDeathRateper100,000` * education),
+  data = data
+)
+
+#summary(modelx)
+
+modelxx <- lm(
+  formula = `Estimated hesitant` ~  +
+    (`CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000` * Region) +
+    (Predominant_Ethnicity) +
+    ( education),
+  data = data
+)
+
+#summary(modelxx)
+
+modelxxx <- lm(
+  formula = `Estimated hesitant` ~  +
+    (`CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000` * Region) +
+    ( education),
+  data = data
+)
+
+#summary(modelxxx)
+
+
+
+ modelxxxx <- lm(
+  formula = `Estimated hesitant` ~  +
+    (`CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000` * Region) +
+    ( education),
+  data = data
+)
+
+#summary(modelxxxx)
+
+
+modelxxxxx <- lm(
+  formula = `Estimated hesitant` ~  +
+    (`CVAC level of concern for vaccination rollout` * Region) +
+    ( education),
+  data = data
+)
+
+summary(modelxxxxx)
+
+
+
+```
+To determine the best model I started with a baseline model including region and covid deaths as effect modifiers and education as a confounding variable (R-squared = .6772). I then used the stepAIC to help make the model more parsimonious. The stepAIC outputed `Estimated hesitant` ~  + (`CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000` * Region) + (Region * Predominant_Ethnicity) + (`covidDeathRateper100,000` * education) with a r-squared value of .6771. While it was more parsimonious than the original model and had almost the same r-squared value I wanted to make it even more parsimonious. 
+
+The next model is `Estimated hesitant` ~  + (`CVAC level of concern for vaccination rollout` * `covidDeathRateper100,000` * Region) + ( education) with a r squared value of .6314. This model is more parsimonious while maintaining as large a r-squared value as possible.
+
+This model formula with coefficients
+
+Estimated_hesitant = 25.227 + 0.208⋅SVI − 1.182⋅CVAC + 0.0216⋅DeathRate + 4.825⋅RegionNortheast − 5.031⋅RegionSouth + 28.553⋅RegionWest − 0.516⋅Education + 0.0454(CVAC⋅DeathRate) + 8.376⋅(CVAC⋅RegionNortheast) + 18.550⋅(CVAC⋅RegionSouth) − 33.204⋅(CVAC⋅RegionWest) + 0.0454⋅(CVAC⋅DeathRate) + 8.376⋅(CVAC⋅Region Northeast) + 18.550⋅(CVAC⋅Region South ) − 33.204⋅(CVAC⋅Region West ) − 0.0451⋅(DeathRate⋅RegionNortheast) + 0.0728⋅ (DeathRate⋅RegionSouth) − 0.2356⋅(DeathRate⋅RegionWest) − 0.0975⋅(CVAC⋅DeathRate⋅RegionNortheast) − 0.1867⋅(CVAC⋅DeathRate⋅RegionSouth) + 0.2515⋅(CVAC⋅DeathRate⋅RegionWest) − 0.0451⋅(DeathRate⋅Region Northeast) + 0.0728⋅(DeathRate⋅Region South ) − 0.2356⋅(DeathRate⋅Region West) − 0.0975⋅(CVAC⋅DeathRate⋅Region Northeast) − 0.1867⋅(CVAC⋅DeathRate⋅Region South) + 0.2515⋅(CVAC⋅DeathRate⋅Region West)
+
+However, I thought this model to be a bit too overcomplicated when the effect modifiers were both used together so I kept working to find a simplier model. The model is `Estimated hesitant` ~ +(`CVAC level of concern for vaccination rollout` * Region) + (education). This model is much simplier an more parsimonious. However, it does loose some r-squared value and is now .5492. 
+
+This model formula with coefficients
+
+Estimated hesitant = 30.359 + 2.700⋅CVAC −0.007RegionNortheast + 0.122RegionSouth + 7.846RegionWest −0.577Education + 0.041(CVAC⋅RegionNortheast) + 2.178(CVAC⋅RegionSouth) −11.517(CVAC⋅Region West)
+
+The intercept(<2e-16), CVAC (4.65e-11), education(<2e-16), RegionWest (<2e-16), CVACxRegionSouth (7.59e-05) and CVACxRegionWest(< 2e-16) are all statistically significant. When all variables are 0, the expected hesitancy is 30.35. With each unit increase of CVAC, hesitancy is expected to increase by 2.70. The midwest is the baseline.  If the region is the West, the hesitancy is expected to increase by 7.84. When CVAC and region south are together, the hesitancy is expected to increase by 2.18. When CVAC and region west are together hesitancy is expected to decrease by 11.51. CVAC, Region south, Region West, and CVAC*RegionSouth and CVACxRegionWest will increase the hesitancy rates. Region Northeast, education, and CVACxRegionWest will decrease hesitancy rates.
+ 
+ 
+ 
+**Goodness of Fit**
+```{r, echo = FALSE}
+autoplot(modelxxxxx)
+
+```
+To test the residuals I used autoplot. The residuals appear to have a slight curve indicating possible non linearity but looks mostly linear. The tails deviate on the normality graph indicating slight non normality in the residuals. When checking for homoscedascity it has a slight upward trend indicating some variance. 
+
+ 
+ 
+## Conclusion
+ Overall, the graph could be stronger and a better predictor but that would mean giving up some parsimony. In the end my model had a pretty descent r-squared value of .5492. This means the model provides a reasonable explanation for vaccine hesitancy, explaining about 55% of its variability.
+ 
+## Interventions
+To address vaccine hesitancy, interventions should focus on strategies targeting high-hesitancy states and regions. This can be done with local messaging, education, and community engagement. More vulnerable populations should be prioritized. One thing that could be improved upon is accessibility to clinics not just economically but physically with transportation. Combatting misinformation is essential to counter vaccine myths effectively. When working with diverse populations, interventions should involve collaborations with community leaders and culturally tailored messaging to build trust and address unique barriers faced by diverse groups. Culturally relevant interventions, like Es Tiempo, a campaign raises awareness of cervical cancer prevention among Latinas, has proven to be successful. More data collection and evaluation will help in sustaining vaccination rates across all communities.
+ 
+ 
+## Additional Tables and Insight
+
+
+```{r, echo = FALSE}
+data$`SVI Category` <- factor(data$`SVI Category`, levels = c("Very Low Vulnerability", 
+                                                              "Low Vulnerability", 
+                                                              "Moderate Vulnerability", 
+                                                              "High Vulnerability", 
+                                                              "Very High Vulnerability"))
+
+# Create the box plot with ordered categories
+
+# Create the box plot using ggplot
+v4 <- ggplot(data, aes(x = `SVI Category`, y = `Estimated hesitant`, fill = `SVI Category`, text = paste(
+  "SVI Category:", `SVI Category`, "<br>",
+  "Estimated Hesitancy:", round(`Estimated hesitant`, 2)
+))) +
+  geom_boxplot() +
+  labs(
+    title = "Fig 3. Box Plot of COVID-19 Vaccine Hesitancy by Social Vulnerability",
+    x = "Social Vulnerability Category",
+    y = "Estimated Hesitancy (%)"
+  ) +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 12, face = "bold"), 
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 8),
+    legend.position = "none"  # Remove the legend
+  )
+
+# Convert the ggplot to an interactive plotly plot
+v4_interactive <- ggplotly(v4, tooltip = "text")
+
+# Display the interactive plot
+v4_interactive
+```
+**Figure 3: Average Hesitancy Rates by Social Vulnerability Index**
+Very high vulnerability has the highest median estimated hesitancy (16.76%). Very low vulnerability has the lowest median rates of hesitancy (10.55%). This is interesting because you would think that the higher vulnerability would not be quite so hesitant.
+
+```{r, echo = FALSE}
+data$`CVAC Level Of Concern` <- factor(data$`CVAC Level Of Concern`, levels = c("Very Low Concern", 
+                                                              "Low Concern", 
+                                                              "Moderate Concern", 
+                                                              "High Concern", 
+                                                              "Very High Concern"))
+
+# Create the box plot with ordered categories
+
+# Create the box plot using ggplot
+v4.5 <- ggplot(data, aes(x = `CVAC Level Of Concern`, y = `Estimated hesitant`, fill = `CVAC Level Of Concern`, text = paste(
+  "CVAC Level Of Concern:", `CVAC Level Of Concern`, "<br>",
+  "Estimated Hesitancy:", round(`Estimated hesitant`, 2)
+))) +
+  geom_boxplot() +
+  labs(
+    title = "Fig 4. Box Plot of COVID-19 Vaccine Hesitancy by CVAC Level Of Concern",
+    x = "CVAC Level Of Concern",
+    y = "Estimated Hesitancy (%)"
+  ) +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 12, face = "bold"), 
+    axis.text.x = element_text(size = 8, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 8),
+    legend.position = "none"  # Remove the legend
+  )
+
+# Convert the ggplot to an interactive plotly plot
+v4.5_interactive <- ggplotly(v4.5, tooltip = "text")
+
+# Display the interactive plot
+v4.5_interactive
+```
+
+**Figure 4: Average Hesitancy Rates by CVAC**
+Very high concern has the highest median estimated hesitancy (16.80%). Low concern has the lowest median rates of hesitancy (10.18%). This makes sense that areas where there is very high concern of vaccine rollout challenges could be high levels of hesitancy. For example, misinformation could be the cause of high levels of hesitancy and cause challenges to vaccine rollouts.
+
+```{r, echo = FALSE}
+data_eth <- data %>%
+  pivot_longer(
+    cols = c("Percent Hispanic", 
+             "Percent non-Hispanic American Indian/Alaska Native",
+             "Percent non-Hispanic Asian",
+             "Percent non-Hispanic Black",
+             "Percent non-Hispanic Native Hawaiian/Pacific Islander",
+             "Percent non-Hispanic White"),
+    names_to = "Ethnicity",
+    values_to = "Ethnicity_Percentage"
+  )
+
+v6 <- ggplot(data_eth, aes(x = Ethnicity_Percentage, y = `Estimated hesitant`, color = Ethnicity, text = paste(
+  "Ethnicity: ", Ethnicity, "<br>",
+  "Ethnicity Percentage: ", round(Ethnicity_Percentage, 2), "%<br>",
+  "Estimated Hesitant: ", round(`Estimated hesitant`, 2), "%"
+))) +
+  geom_point(alpha = 0.7) + 
+  labs(
+    title = "Fig 5.Scatter Plot of Vaccine Hesitancy vs. Ethnicity Percentage",
+    x = "Ethnicity Percentage (%)",
+    y = "Estimated Hesitancy (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    legend.position = "none"
+  ) +
+  facet_wrap(~ Ethnicity, scales = "free_x")
+
+# Convert to an interactive plotly plot
+v6_interactive <- ggplotly(v6, tooltip = "text")
+
+# Display the interactive plot
+v6_interactive
+```
+
+**Figure 5: Average Hesitancy Rates by Ethnicity**
+This graph displays the relationship between the percentage of an ethnicity in a population and the estimated hesitancy levels. Some groups like non-Hispanic Asians appear to have lower overall hesitancy, while groups such as non-Hispanic Black and non-Hispanic American Indian/Alaska Native show a wider spread and higher average hesitancy.
